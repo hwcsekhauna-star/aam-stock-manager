@@ -661,17 +661,33 @@ function setupCustomDropdownSearch(inputId, listId) {
     if (!input || input.dataset.setup) return;
     input.dataset.setup = 'true';
     
-    input.addEventListener('focus', () => {
+    const openList = () => {
         list.classList.remove('hidden');
-        Array.from(list.children).forEach(li => li.style.display = '');
+        list.style.display = 'block'; // Force display just in case
+        Array.from(list.children).forEach(li => {
+            // Only show LI if it's actually a match for current input
+            const query = input.value.toLowerCase();
+            li.style.display = li.textContent.toLowerCase().includes(query) ? 'block' : 'none';
+        });
+    };
+
+    input.addEventListener('focus', openList);
+    input.addEventListener('click', openList);
+    
+    input.addEventListener('blur', () => {
+        // Delay to allow mousedown on LI to fire first
+        setTimeout(() => {
+            list.classList.add('hidden');
+            list.style.display = 'none';
+        }, 250);
     });
     
-    input.addEventListener('blur', () => setTimeout(() => list.classList.add('hidden'), 200));
-    
     input.addEventListener('input', (e) => {
+        list.classList.remove('hidden');
+        list.style.display = 'block';
         const query = e.target.value.toLowerCase();
         Array.from(list.children).forEach(li => {
-            li.style.display = li.textContent.toLowerCase().includes(query) ? '' : 'none';
+            li.style.display = li.textContent.toLowerCase().includes(query) ? 'block' : 'none';
         });
     });
 }
