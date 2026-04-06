@@ -69,19 +69,19 @@
 
             <div class="tab-content" id="view-dashboard">
                 <div class="metrics-grid">
-                    <div class="metric-card">
+                    <div class="metric-card" id="card-total-drugs" style="cursor: pointer;" onclick="document.getElementById('search-stock').value=''; renderMasterStock();">
                         <div class="metric-icon">💊</div>
                         <h3>Total Drugs</h3>
                         <div class="value" id="metric-total-drugs">0</div>
                         <p class="metric-sub">In active inventory</p>
                     </div>
-                    <div class="metric-card warning">
+                    <div class="metric-card warning" id="card-low-stock" style="cursor: pointer;" onclick="filterMasterStock('low')">
                         <div class="metric-icon">⚠️</div>
                         <h3>Low Stock</h3>
                         <div class="value" id="metric-low-stock">0</div>
                         <p class="metric-sub">Below 10 units</p>
                     </div>
-                    <div class="metric-card danger">
+                    <div class="metric-card danger" id="card-expiring" style="cursor: pointer;" onclick="filterMasterStock('expiring')">
                         <div class="metric-icon">🗓️</div>
                         <h3>Expiring Soon</h3>
                         <div class="value" id="metric-expiring">0</div>
@@ -127,10 +127,11 @@
                     <form id="form-receive">
                         <div class="form-group">
                             <label>Select Drug from EDL</label>
-                            <select id="recv-drug" required>
-                                <option value="" disabled selected>Select Drug...</option>
-                                <!-- Populated from EDL -->
-                            </select>
+                            <div class="custom-select-wrapper" id="recv-drug-wrapper">
+                                <input type="text" id="recv-drug-search" class="custom-select-input w-full" placeholder="Type to search..." autocomplete="off" required>
+                                <input type="hidden" id="recv-drug" required>
+                                <ul class="custom-select-list hidden" id="recv-drug-list"></ul>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label>Batch Number (Optional)</label>
@@ -169,10 +170,11 @@
                     <form id="form-issue">
                         <div class="form-group">
                             <label>Select Available Drug & Batch</label>
-                            <select id="issue-drug-batch" required>
-                                <option value="" disabled selected>Select Item in Stock...</option>
-                                <!-- Populated from Active Stock -->
-                            </select>
+                            <div class="custom-select-wrapper" id="issue-drug-wrapper">
+                                <input type="text" id="issue-drug-search" class="custom-select-input w-full" placeholder="Type to search..." autocomplete="off" required>
+                                <input type="hidden" id="issue-drug-batch" required>
+                                <ul class="custom-select-list hidden" id="issue-drug-list"></ul>
+                            </div>
                         </div>
                         <div class="form-group alert-box info hidden" id="issue-stock-info">
                             Current Stock: <strong id="issue-current-stock">0</strong>
