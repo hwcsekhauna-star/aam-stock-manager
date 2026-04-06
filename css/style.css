@@ -641,6 +641,7 @@ tbody tr:hover {
 .custom-select-wrapper {
   position: relative;
   width: 100%;
+  z-index: 100;
 }
 
 .custom-select-input {
@@ -671,13 +672,14 @@ tbody tr:hover {
   right: 0;
   max-height: 250px;
   overflow-y: auto;
-  background: rgba(20, 20, 28, 0.95);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(99, 102, 241, 0.4);
+  background: rgba(20, 20, 28, 0.98);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(99, 102, 241, 0.6);
   border-radius: 12px;
   list-style: none;
-  z-index: 1050;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  z-index: 9999;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.6);
+  display: none;
 }
 
 .custom-select-list li {
