@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AAM Stock Manager</title>
+    <!-- Wait, manifest goes here -->
+    <link rel="manifest" href="./manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="theme-color" content="#6366f1">
+    <link rel="stylesheet" href="./css/style.css">
+    <!-- Local SheetJS -->
+    <script src="./js/xlsx.full.min.js"></script>
+    <style>
+      /* Temporary Inline reset for early paint */
+      body { margin: 0; background: #050508; color: #ffffff; font-family: 'Outfit', system-ui, -apple-system, sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="brand">
+                <div class="logo">AAM</div>
+                <h2>Stock Manager</h2>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-tab="dashboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Dashboard
+                </li>
+                <li data-tab="receive">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Receive Stock
+                </li>
+                <li data-tab="issue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    Issue Stock
+                </li>
+                <li data-tab="edl">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    EDL List
+                </li>
+                <li data-tab="sync">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+                    Import / Export
+                </li>
+                <li data-tab="reports">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path></svg>
+                    Monthly Reports
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="content">
+            <!-- Header -->
+            <header>
+                <h1 id="page-title">Dashboard</h1>
+                <div class="header-status">
+                    <span id="cloud-status-icon" class="status-indicator offline" title="Cloud Sync Disabled"></span>
+                    <span id="cloud-status-text" style="font-size:0.75rem;opacity:0.8;margin-right:8px;">Local Only</span>
+                    <span class="status-indicator online"></span>
+                    <span id="sync-status">Ready</span>
+                </div>
+            </header>
+
+            <div class="tab-content" id="view-dashboard">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-icon">💊</div>
+                        <h3>Total Drugs</h3>
+                        <div class="value" id="metric-total-drugs">0</div>
+                        <p class="metric-sub">In active inventory</p>
+                    </div>
+                    <div class="metric-card warning">
+                        <div class="metric-icon">⚠️</div>
+                        <h3>Low Stock</h3>
+                        <div class="value" id="metric-low-stock">0</div>
+                        <p class="metric-sub">Below 10 units</p>
+                    </div>
+                    <div class="metric-card danger">
+                        <div class="metric-icon">🗓️</div>
+                        <h3>Expiring Soon</h3>
+                        <div class="value" id="metric-expiring">0</div>
+                        <p class="metric-sub">Within 90 days</p>
+                    </div>
+                </div>
+
+                <div class="card full-width">
+                    <div class="card-header">
+                        <div>
+                          <h2>Master Stock List</h2>
+                          <p style="color:var(--text-secondary);font-size:0.9rem;margin-top:4px;">All active batches tracked in real-time</p>
+                        </div>
+                        <input type="text" id="search-stock" placeholder="Search drug..." class="input-search">
+                    </div>
+                    <div class="table-container">
+                        <table id="stock-table">
+                            <thead>
+                                <tr>
+                                    <th>Drug Name</th>
+                                    <th>Strength</th>
+                                    <th>Batch No</th>
+                                    <th>Stock</th>
+                                    <th>Mfg Date</th>
+                                    <th>Exp Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Automatically Populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receive Stock View -->
+            <div class="tab-content hidden" id="view-receive">
+                <div class="card max-w-lg mx-auto">
+                    <h2>Receive New Stock</h2>
+                    <p class="text-muted" style="margin-bottom:24px;">Record an incoming drug shipment into inventory.</p>
+                    <form id="form-receive">
+                        <div class="form-group">
+                            <label>Select Drug from EDL</label>
+                            <select id="recv-drug" required>
+                                <option value="" disabled selected>Select Drug...</option>
+                                <!-- Populated from EDL -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Batch Number (Optional)</label>
+                            <input type="text" id="recv-batch" placeholder="Leave blank if unknown">
+                        </div>
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label>Date of Mfg (Optional)</label>
+                                <input type="date" id="recv-mfg">
+                            </div>
+                            <div class="form-group">
+                                <label>Date of Exp (Optional)</label>
+                                <input type="date" id="recv-exp">
+                            </div>
+                        </div>
+                        <div class="form-group-row">
+                            <div class="form-group">
+                                <label>Receiving Date</label>
+                                <input type="date" id="recv-date" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Quantity Received</label>
+                                <input type="number" id="recv-qty" min="1" required placeholder="0">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-full">Record Receipt</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Issue Stock View -->
+            <div class="tab-content hidden" id="view-issue">
+                <div class="card max-w-lg mx-auto">
+                    <h2>Issue Stock</h2>
+                    <p class="text-muted" style="margin-bottom:24px;">Deduct units from a specific batch in stock.</p>
+                    <form id="form-issue">
+                        <div class="form-group">
+                            <label>Select Available Drug & Batch</label>
+                            <select id="issue-drug-batch" required>
+                                <option value="" disabled selected>Select Item in Stock...</option>
+                                <!-- Populated from Active Stock -->
+                            </select>
+                        </div>
+                        <div class="form-group alert-box info hidden" id="issue-stock-info">
+                            Current Stock: <strong id="issue-current-stock">0</strong>
+                        </div>
+                        <div class="form-group">
+                            <label>Issue Date</label>
+                            <input type="date" id="issue-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Quantity Issued</label>
+                            <input type="number" id="issue-qty" min="1" required placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Issued To / Remarks (Optional)</label>
+                            <input type="text" id="issue-remarks" placeholder="e.g. Department A">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-full">Record Issue</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- EDL Manager View -->
+            <div class="tab-content hidden" id="view-edl">
+                <div class="card full-width">
+                    <div class="card-header" style="display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                        <h2>Essential Drugs List (EDL)</h2>
+                        <div style="display: flex; gap: 12px; align-items: center; flex: 1; justify-content: flex-end;">
+                            <input type="text" id="search-edl" placeholder="Search EDL..." class="input-search" style="max-width: 250px;">
+                            <button class="btn btn-primary" id="btn-add-edl">+ Add Drug</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="edl-table">
+                            <thead>
+                                <tr>
+                                    <th>Drug Name</th>
+                                    <th>Strength</th>
+                                    <th>Available Stock</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="selectable-rows">
+                                <!-- Populated from EDL Data -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Add EDL Modal -->
+                <div id="modal-edl" class="modal hidden">
+                    <div class="modal-content card max-w-sm">
+                        <h3>Add New Drug to EDL</h3>
+                        <form id="form-edl">
+                            <div class="form-group">
+                                <label>Drug Name</label>
+                                <input type="text" id="edl-name" required placeholder="e.g. Paracetamol">
+                            </div>
+                            <div class="form-group">
+                                <label>Strength / Unit</label>
+                                <input type="text" id="edl-strength" required placeholder="e.g. 500mg">
+                            </div>
+                            <div class="form-group-row mt-4">
+                                <button type="button" class="btn btn-secondary" id="btn-close-edl">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Save Drug</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Import / Export View -->
+            <div class="tab-content hidden" id="view-sync">
+                <div class="card max-w-lg mx-auto">
+                    <h2>Cloud Sync (GitHub)</h2>
+                    <p class="text-muted mb-4">Connect to a private GitHub repository to keep your database synced across all your devices.</p>
+                    
+                    <div id="backend-status-card" class="alert-box info mb-4">
+                        <div style="font-size:1.4rem;">🛡️</div>
+                        <div>
+                            <strong>Enterprise Backend Active</strong><br>
+                            <span style="font-size:0.85rem; opacity:0.8;">Hardwired to Private AAM Database</span>
+                        </div>
+                    </div>
+                    
+                    <details class="text-muted" style="font-size:0.85rem; cursor:pointer; margin-bottom:24px;">
+                        <summary>Advanced: Overwrite Backend Settings</summary>
+                        <form id="form-github-config" class="mt-4">
+                            <!-- Form remains for override if ever needed -->
+                            <div class="form-group">
+                                <label>GitHub Token</label>
+                                <input type="password" id="gh-token" placeholder="Override Personal Token">
+                            </div>
+                            <div class="form-group-row">
+                                <div class="form-group">
+                                    <label>Owner</label>
+                                    <input type="text" id="gh-owner">
+                                </div>
+                                <div class="form-group">
+                                    <label>Repo</label>
+                                    <input type="text" id="gh-repo">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>File Path</label>
+                                <input type="text" id="gh-path">
+                            </div>
+                            <button type="submit" class="btn btn-secondary w-full" id="btn-save-gh">Save Overrides</button>
+                        </form>
+                    </details>
+
+                    <div id="cloud-actions" class="hidden">
+                        <hr style="border:0; border-top:1px solid var(--surface-border); margin:24px 0;">
+                        <h3>Cloud Actions</h3>
+                        <div class="sync-actions mt-4">
+                            <button class="btn btn-secondary w-full" id="btn-pull-cloud">📥 Pull from Cloud</button>
+                            <button class="btn btn-primary w-full" id="btn-push-cloud">📤 Push to Cloud</button>
+                        </div>
+                    </div>
+
+                    <hr style="border:0; border-top:1px solid var(--surface-border); margin:32px 0;">
+
+                    <h2>Legacy Data Sync (Excel)</h2>
+                    <p class="text-muted mb-4">Import your existing database or export the current state to Excel.</p>
+                    
+                    <div class="sync-actions mt-4">
+                        <div class="sync-card">
+                            <div class="icon">📥</div>
+                            <h3>Import Excel File</h3>
+                            <p>Upload a previously exported AAM Stock Manager file.</p>
+                            <input type="file" id="import-file" accept=".xlsx, .xls" class="hidden">
+                            <button class="btn btn-secondary w-full mt-2" onclick="document.getElementById('import-file').click()">Select File</button>
+                        </div>
+                        
+                        <div class="sync-card">
+                            <div class="icon">📤</div>
+                            <h3>Export to Excel</h3>
+                            <p>Download your latest EDL, Master Stock, and Daily Transactions.</p>
+                            <button class="btn btn-primary w-full mt-2" id="btn-export">Download .xlsx</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group alert-box danger mt-4" id="import-warning">
+                        <strong>Warning:</strong> Importing/Pulling will overwrite your local unsaved data. Please export first if needed!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Reports View -->
+            <div class="tab-content hidden" id="view-reports">
+                <div class="card full-width">
+                    <div class="card-header">
+                        <h2>Analytics & Monthly Ledger</h2>
+                        <div class="form-group-row" style="align-items: flex-end; gap: 16px; margin-bottom: 0;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>Select Ledger Month</label>
+                                <select id="report-month" style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(50,50,50,0.5); color: white;">
+                                    <!-- Populated by JS -->
+                                </select>
+                            </div>
+                            <button class="btn btn-secondary" id="btn-export-report">Export Month</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="report-table">
+                            <thead>
+                                <tr>
+                                    <th>Drug Name</th>
+                                    <th>Strength</th>
+                                    <th>Opening Stock</th>
+                                    <th>Received</th>
+                                    <th>Issued</th>
+                                    <th style="color:var(--primary)">Closing Stock</th>
+                                </tr>
+                            </thead>
+                            <tbody class="selectable-rows">
+                                <!-- Generated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Daily Breakdown Modal -->
+                <div id="modal-daily" class="modal hidden">
+                    <div class="modal-content card" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+                        <div class="card-header border-b pb-4">
+                            <h3 id="daily-modal-title">Daily Breakdown</h3>
+                            <button class="btn btn-secondary" id="btn-close-daily" style="padding: 4px 12px;">Close</button>
+                        </div>
+                        <div class="table-container mt-4">
+                            <table id="daily-table" style="font-size: 0.9rem;">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Opening</th>
+                                        <th style="color:var(--success)">Received</th>
+                                        <th style="color:var(--danger)">Issued</th>
+                                        <th>Closing</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        <!-- Edit Log Entry Modal -->
+        <div id="modal-edit-log" class="modal hidden">
+            <div class="modal-content card" style="max-width: 520px;">
+                <div class="card-header">
+                    <h3>Edit Transaction Entry</h3>
+                    <button class="btn btn-secondary" id="btn-close-edit-log" style="padding:4px 12px;">Cancel</button>
+                </div>
+                <form id="form-edit-log" style="margin-top:16px; display:flex; flex-direction:column; gap:12px;">
+                    <input type="hidden" id="edit-log-id">
+                    <div class="form-group">
+                        <label>Drug Name</label>
+                        <input type="text" id="edit-log-drug" readonly style="opacity:0.6;">
+                    </div>
+                    <div class="form-group">
+                        <label>Batch Number</label>
+                        <input type="text" id="edit-log-batch" placeholder="Batch number">
+                    </div>
+                    <div class="form-group-row">
+                        <div class="form-group">
+                            <label>Date of Mfg</label>
+                            <input type="date" id="edit-log-mfg">
+                        </div>
+                        <div class="form-group">
+                            <label>Date of Exp</label>
+                            <input type="date" id="edit-log-exp">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Action Date</label>
+                        <input type="date" id="edit-log-date">
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity</label>
+                        <input type="number" id="edit-log-qty" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Remarks</label>
+                        <input type="text" id="edit-log-remarks" placeholder="Optional notes">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%; padding:14px;">Save Changes</button>
+                </form>
+            </div>
+        </div>
+
+        </main>
+    </div>
+    
+    <!-- Notification Toast -->
+    <div id="toast" class="toast hidden">Message saved!</div>
+
+    <!-- First-Run Setup Modal -->
+    <div id="modal-setup" class="modal hidden" style="z-index:2000; align-items:center; justify-content:center;">
+        <div class="card modal-content" style="max-width:480px; border-radius:24px; padding:40px; position:relative;">
+            <div style="text-align:center; margin-bottom:28px;">
+                <div style="font-size:3rem; margin-bottom:12px;">☁️</div>
+                <h2 style="font-size:1.6rem; margin-bottom:8px;">Welcome to AAM Stock Manager</h2>
+                <p class="text-muted">Connect your private GitHub repository to enable cloud sync across all your devices.</p>
+            </div>
+            <form id="form-setup" novalidate>
+                <div class="form-group">
+                    <label>GitHub Personal Access Token</label>
+                    <input type="password" id="setup-token" placeholder="ghp_xxxxxxxxxxxxxx" required autocomplete="off">
+                    <p style="font-size:0.78rem; color:var(--text-secondary); margin-top:6px;">Requires <strong>repo</strong> scope. <a href="https://github.com/settings/tokens/new" target="_blank" style="color:var(--primary);">Create one here →</a></p>
+                </div>
+                <div class="form-group-row">
+                    <div class="form-group">
+                        <label>GitHub Username</label>
+                        <input type="text" id="setup-owner" placeholder="e.g. john" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Repository Name</label>
+                        <input type="text" id="setup-repo" placeholder="e.g. aam-data" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Data File Path</label>
+                    <input type="text" id="setup-path" value="stock_data.json">
+                    <p style="font-size:0.78rem; color:var(--text-secondary); margin-top:6px;">Leave default unless you want a custom path.</p>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; margin-top:10px;">🚀 Connect & Launch App</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="./js/seed.js"></script>
+    <script src="./js/app.js"></script>
+</body>
+</html>
