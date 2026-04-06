@@ -249,6 +249,12 @@ header h1 {
   flex-direction: column;
 }
 
+.metric-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3), 0 0 20px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
 /* Ambient inner glow */
 .metric-card::after {
     content:''; position:absolute; top:-50%; left:-50%; width:200%; height:200%;
@@ -390,12 +396,33 @@ input:focus, select:focus {
   font-size: 1rem;
   cursor: pointer;
   border: none;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 120%;
+  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  transition: transform 0.6s ease-out, opacity 0.4s ease-out;
+}
+
+.btn:active::after {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  transition: 0s;
 }
 
 .btn:active { transform: scale(0.96); }
@@ -407,7 +434,7 @@ input:focus, select:focus {
 }
 
 .btn-primary:hover { 
-    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.6), inset 0 1px 0 rgba(255,255,255,0.2);
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.8), 0 0 15px rgba(168, 85, 247, 0.6), inset 0 1px 0 rgba(255,255,255,0.2);
     transform: translateY(-2px);
 }
 
@@ -415,11 +442,13 @@ input:focus, select:focus {
   background: rgba(255,255,255,0.05);
   color: var(--text-primary);
   border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
 }
 
 .btn-secondary:hover { 
     background: rgba(255,255,255,0.1); 
-    border-color: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.3);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
     transform: translateY(-2px);
 }
 
@@ -479,8 +508,28 @@ tbody tr:hover {
   border: 1px solid transparent;
 }
 .badge.ok { background: rgba(16, 185, 129, 0.1); color: var(--success); border-color: rgba(16,185,129,0.2); }
-.badge.low { background: rgba(245, 158, 11, 0.1); color: var(--warning); border-color: rgba(245,158,11,0.2); }
-.badge.danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); border-color: rgba(239,68,68,0.2); }
+.badge.low { 
+    background: rgba(245, 158, 11, 0.15); 
+    color: var(--warning); 
+    border-color: rgba(245,158,11,0.4); 
+    animation: badgeWarning 2s infinite alternate;
+}
+.badge.danger { 
+    background: rgba(239, 68, 68, 0.15); 
+    color: var(--danger); 
+    border-color: rgba(239,68,68,0.4); 
+    animation: badgeDanger 2s infinite alternate;
+}
+
+@keyframes badgeWarning {
+    from { box-shadow: 0 0 4px rgba(245,158,11,0.2); }
+    to { box-shadow: 0 0 12px rgba(245,158,11,0.6); }
+}
+
+@keyframes badgeDanger {
+    from { box-shadow: 0 0 4px rgba(239,68,68,0.2); }
+    to { box-shadow: 0 0 16px rgba(239,68,68,0.6); }
+}
 
 /* Modals - Glassmorphism */
 .modal {
@@ -645,15 +694,26 @@ tbody tr:hover {
     margin: 0;
     width: 22px;
     height: 22px;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
   
+  .nav-links li:active svg {
+    transform: scale(0.85);
+  }
+
   .nav-links li.active {
     background: transparent;
     border: none;
     box-shadow: none;
-    color: var(--primary);
+    color: #a855f7;
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
   }
   
+  .nav-links li.active svg {
+    filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.6));
+    transform: scale(1.1);
+  }
+
   .nav-links li.active::before {
     display: none;
   }
@@ -661,12 +721,14 @@ tbody tr:hover {
   .nav-links li.active::after {
     content: '';
     position: absolute;
-    top: 0;
-    left: 20%;
-    width: 60%;
-    height: 3px;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
     background: var(--primary-grad);
-    border-radius: 0 0 4px 4px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--primary);
   }
 
   .content {
@@ -702,11 +764,18 @@ tbody tr:hover {
   }
   
   tr { 
-    margin-bottom: 16px; 
-    background: rgba(255,255,255,0.02);
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.05) !important;
-    padding: 8px;
+    margin-bottom: 20px; 
+    background: linear-gradient(145deg, rgba(30,30,40,0.5) 0%, rgba(15,15,20,0.8) 100%);
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    padding: 12px 8px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    transition: transform 0.3s ease, border-color 0.3s ease;
+  }
+
+  .selectable-rows tr:active {
+    transform: scale(0.98);
+    border-color: rgba(99, 102, 241, 0.4) !important;
   }
   
   td { 
