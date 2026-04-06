@@ -654,15 +654,47 @@ function renderEDLTable() {
     });
 }
 
-function populateEDLSelect() {
-    const select = document.getElementById('recv-drug');
-    select.innerHTML = '<option value="" disabled selected>Select Drug...</option>';
-    dataManager.edl.forEach((item, index) => {
-        const opt = document.createElement('option');
-        opt.value = index; // Store index to retrieve both name and strength
-        opt.textContent = `${item.name} (${item.strength})`;
-        select.appendChild(opt);
+/* CUSTOM DROPDOWN HELPERS */
+function setupCustomDropdownSearch(inputId, listId) {
+    const input = document.getElementById(inputId);
+    const list = document.getElementById(listId);
+    if (!input || input.dataset.setup) return;
+    input.dataset.setup = 'true';
+    
+    input.addEventListener('focus', () => {
+        list.classList.remove('hidden');
+        Array.from(list.children).forEach(li => li.style.display = '');
     });
+    
+    input.addEventListener('blur', () => setTimeout(() => list.classList.add('hidden'), 200));
+    
+    input.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        Array.from(list.children).forEach(li => {
+            li.style.display = li.textContent.toLowerCase().includes(query) ? '' : 'none';
+        });
+    });
+}
+
+function populateEDLSelect() {
+    const list = document.getElementById('recv-drug-list');
+    list.innerHTML = '';
+    
+    const sortedEDL = [...dataManager.edl].sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: 'base'}));
+    
+    sortedEDL.forEach(item => {
+        const trueIndex = dataManager.edl.findIndex(d => d.name === item.name && d.strength === item.strength);
+        const li = document.createElement('li');
+        li.textContent = `${item.name} (${item.strength})`;
+        
+        li.addEventListener('mousedown', () => {
+            document.getElementById('recv-drug-search').value = li.textContent;
+            document.getElementById('recv-drug').value = trueIndex;
+            list.classList.add('hidden');
+        });
+        list.appendChild(li);
+    });
+    setupCustomDropdownSearch('recv-drug-search', 'recv-drug-list');
 }
 
 // ------ RECEIVE STOCK ------ //
@@ -685,29 +717,36 @@ document.getElementById('form-receive').addEventListener('submit', (e) => {
 
 // ------ ISSUE STOCK ------ //
 function populateIssueSelect() {
-    const select = document.getElementById('issue-drug-batch');
-    select.innerHTML = '<option value="" disabled selected>Select Item in Stock...</option>';
-    const stock = dataManager.getMasterStock();
-    stock.forEach((item, index) => {
-        const opt = document.createElement('option');
-        // Encode data into value
-        opt.value = JSON.stringify({ name: item.drugName, strength: item.strength, batchNo: item.batchNo, availableStock: item.availableStock });
-        opt.textContent = `${item.drugName} (${item.strength}) - Batch: ${item.batchNo} [Stock: ${item.availableStock}]`;
-        select.appendChild(opt);
+    const list = document.getElementById('issue-drug-list');
+    list.innerHTML = '';
+    
+    const stock = dataManager.getMasterStock().sort((a, b) => {
+        const cmp = a.drugName.localeCompare(b.drugName, undefined, {sensitivity: 'base'});
+        if (cmp !== 0) return cmp;
+        return a.batchNo.localeCompare(b.batchNo);
     });
+    
+    stock.forEach(item => {
+        const li = document.createElement('li');
+        const valStr = JSON.stringify({ name: item.drugName, strength: item.strength, batchNo: item.batchNo, availableStock: item.availableStock });
+        
+        li.textContent = `${item.drugName} (${item.strength}) - Batch: ${item.batchNo} [Stock: ${item.availableStock}]`;
+        
+        li.addEventListener('mousedown', () => {
+            document.getElementById('issue-drug-search').value = li.textContent;
+            document.getElementById('issue-drug-batch').value = valStr;
+            
+            // Mimic the old change event behavior
+            document.getElementById('issue-current-stock').textContent = item.availableStock;
+            document.getElementById('issue-qty').max = item.availableStock;
+            document.getElementById('issue-stock-info').classList.remove('hidden');
+            
+            list.classList.add('hidden');
+        });
+        list.appendChild(li);
+    });
+    setupCustomDropdownSearch('issue-drug-search', 'issue-drug-list');
 }
-
-document.getElementById('issue-drug-batch').addEventListener('change', (e) => {
-    const info = document.getElementById('issue-stock-info');
-    if (e.target.value) {
-        const data = JSON.parse(e.target.value);
-        document.getElementById('issue-current-stock').textContent = data.availableStock;
-        document.getElementById('issue-qty').max = data.availableStock;
-        info.classList.remove('hidden');
-    } else {
-        info.classList.add('hidden');
-    }
-});
 
 document.getElementById('form-issue').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -726,17 +765,38 @@ document.getElementById('form-issue').addEventListener('submit', (e) => {
 });
 
 // ------ DASHBOARD / MASTER STOCK ------ //
+let _activeDashboardFilter = null;
+
+function filterMasterStock(type) {
+    _activeDashboardFilter = type; // 'low' or 'expiring'
+    document.getElementById('search-stock').value = ''; 
+    renderMasterStock();
+    // Scroll down to the table
+    document.getElementById('search-stock').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function renderMasterStock() {
     const search = document.getElementById('search-stock').value.toLowerCase();
     const tbody = document.getElementById('stock-table').querySelector('tbody');
     tbody.innerHTML = '';
     
     let activeStock = dataManager.getMasterStock();
-    if(search) {
+    const today = new Date();
+    
+    if (_activeDashboardFilter && !search) {
+        activeStock = activeStock.filter(item => {
+            if (_activeDashboardFilter === 'low') return item.availableStock < 10;
+            if (_activeDashboardFilter === 'expiring') {
+                const days = (new Date(item.expDate) - today) / (1000 * 60 * 60 * 24);
+                return days < 90;
+            }
+            return true;
+        });
+    } else if (search) {
+        // Search overrides and clears dashboard filter
+        _activeDashboardFilter = null;
         activeStock = activeStock.filter(s => s.drugName.toLowerCase().includes(search) || s.batchNo.toLowerCase().includes(search));
     }
-
-    const today = new Date();
     
     activeStock.forEach(item => {
         const expDateObj = new Date(item.expDate);
